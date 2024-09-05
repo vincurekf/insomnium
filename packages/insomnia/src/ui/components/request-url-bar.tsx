@@ -1,4 +1,3 @@
-
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { useFetcher, useParams, useRouteLoaderData } from 'react-router-dom';
 import { useInterval } from 'react-use';
@@ -87,19 +86,20 @@ export const RequestUrlBar = forwardRef<RequestUrlBarHandle, Props>(({
       setLoading(false);
     }
   }, [fetcher.state, setLoading]);
-  const { organizationId, projectId, workspaceId, requestId } = useParams() as { organizationId: string; projectId: string; workspaceId: string; requestId: string };
+  const { projectId, workspaceId, requestId } = useParams() as { projectId: string; workspaceId: string; requestId: string };
   const connect = (connectParams: ConnectActionParams) => {
     fetcher.submit(JSON.stringify(connectParams),
       {
-        action: `/organization/${organizationId}/project/${projectId}/workspace/${workspaceId}/debug/request/${requestId}/connect`,
+        action: `/project/${projectId}/workspace/${workspaceId}/debug/request/${requestId}/connect`,
         method: 'post',
         encType: 'application/json',
       });
   };
   const send = (sendParams: SendActionParams) => {
+            debugger
     fetcher.submit(JSON.stringify(sendParams),
       {
-        action: `/organization/${organizationId}/project/${projectId}/workspace/${workspaceId}/debug/request/${requestId}/send`,
+        action: `/project/${projectId}/workspace/${workspaceId}/debug/request/${requestId}/send`,
         method: 'post',
         encType: 'application/json',
       });
@@ -141,12 +141,14 @@ export const RequestUrlBar = forwardRef<RequestUrlBarHandle, Props>(({
     }
 
     try {
-      const { request,
-        environment } = await fetchRequestData(requestId);
+      const {
+        request,
+        environment
+      } = await fetchRequestData(requestId);
 
       const renderResult = await tryToInterpolateRequest(request, environment._id, RENDER_PURPOSE_SEND);
-      // ARCHY NOTE: HERE IS SEND
       const renderedRequest = await tryToTransformRequestWithPlugins(renderResult);
+
       renderedRequest && send({
         renderedRequest,
         shouldPromptForPathAfterResponse,

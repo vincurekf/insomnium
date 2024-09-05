@@ -1,6 +1,5 @@
 import React from 'react';
 import { LoaderFunction, Outlet, useLoaderData } from 'react-router-dom';
-
 import { SortOrder } from '../../common/constants';
 import { database } from '../../common/database';
 import { fuzzyMatchAll } from '../../common/misc';
@@ -12,12 +11,10 @@ import { CaCertificate } from '../../models/ca-certificate';
 import { ClientCertificate } from '../../models/client-certificate';
 import { CookieJar } from '../../models/cookie-jar';
 import { Environment } from '../../models/environment';
-import { GitRepository } from '../../models/git-repository';
 import { GrpcRequest } from '../../models/grpc-request';
 import { GrpcRequestMeta } from '../../models/grpc-request-meta';
 import { sortProjects } from '../../models/helpers/project';
-import { DEFAULT_ORGANIZATION_ID } from '../../models/organization';
-import { isRemoteProject, Project } from '../../models/project';
+import { Project } from '../../models/project';
 import { Request } from '../../models/request';
 import { isRequestGroup, RequestGroup } from '../../models/request-group';
 import { RequestGroupMeta } from '../../models/request-group-meta';
@@ -27,7 +24,6 @@ import {
 } from '../../models/websocket-request';
 import { Workspace } from '../../models/workspace';
 import { WorkspaceMeta } from '../../models/workspace-meta';
-import { StatusCandidate } from '../../sync/types';
 import { guard } from '../../utils/guard';
 
 type Collection = Child[];
@@ -36,7 +32,6 @@ export interface WorkspaceLoaderData {
   activeWorkspace: Workspace;
   activeWorkspaceMeta: WorkspaceMeta;
   activeProject: Project;
-  gitRepository: GitRepository | null;
   activeEnvironment: Environment;
   activeCookieJar: CookieJar;
   baseEnvironment: Environment;
@@ -47,7 +42,6 @@ export interface WorkspaceLoaderData {
   projects: Project[];
   requestTree: Child[];
   grpcRequests: GrpcRequest[];
-  syncItems: StatusCandidate[];
   collection: Collection;
 }
 export interface Child {
@@ -64,7 +58,7 @@ export const workspaceLoader: LoaderFunction = async ({
   request,
   params,
 }): Promise<WorkspaceLoaderData> => {
-  const { projectId, workspaceId, organizationId } = params;
+  const { projectId, workspaceId } = params;
   guard(workspaceId, 'Workspace ID is required');
   guard(projectId, 'Project ID is required');
 
@@ -82,9 +76,6 @@ export const workspaceLoader: LoaderFunction = async ({
     workspaceId,
   );
   guard(activeWorkspaceMeta, 'Workspace meta not found');
-  const gitRepository = await models.gitRepository.getById(
-    activeWorkspaceMeta.gitRepositoryId || '',
-  );
 
   const baseEnvironment = await models.environment.getByParentId(workspaceId);
   guard(baseEnvironment, 'Base environment not found');
@@ -105,17 +96,11 @@ export const workspaceLoader: LoaderFunction = async ({
 
   const activeApiSpec = await models.apiSpec.getByParentId(workspaceId);
   const clientCertificates = await models.clientCertificate.findByParentId(
-    workspaceId,
+    workspaceId
   );
 
   const allProjects = await models.project.all();
-
-  const organizationProjects =
-    organizationId === DEFAULT_ORGANIZATION_ID
-      ? allProjects.filter(proj => !isRemoteProject(proj))
-      : [activeProject];
-
-  const projects = sortProjects(organizationProjects);
+  const projects = sortProjects(allProjects);
   const syncItemsList: (
     | Workspace
     | Environment
@@ -226,13 +211,6 @@ export const workspaceLoader: LoaderFunction = async ({
     parentIsCollapsed: false,
     ancestors: [],
   });
-  const syncItems: StatusCandidate[] = syncItemsList
-    .filter(canSync)
-    .map(i => ({
-      key: i._id,
-      name: i.name || '',
-      document: i,
-    }));
 
   function flattenTree() {
     const collection: Collection = [];
@@ -254,7 +232,6 @@ export const workspaceLoader: LoaderFunction = async ({
   return {
     activeWorkspace,
     activeProject,
-    gitRepository,
     activeWorkspaceMeta,
     activeCookieJar,
     activeEnvironment,
@@ -267,15 +244,13 @@ export const workspaceLoader: LoaderFunction = async ({
     requestTree,
     // TODO: remove this state hack when the grpc responses go somewhere else
     grpcRequests: grpcReqs,
-    syncItems,
     collection: flattenTree(),
   };
 };
 
 const WorkspaceRoute = () => {
   const workspaceData = useLoaderData() as WorkspaceLoaderData;
-  const branch = workspaceData.activeWorkspaceMeta.cachedGitRepositoryBranch;
-  return <Outlet key={branch} />;
+  return <Outlet key={null} />;
 };
 
 export default WorkspaceRoute;

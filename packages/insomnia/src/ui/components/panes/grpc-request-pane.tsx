@@ -1,9 +1,7 @@
 import React, { FunctionComponent, useEffect, useRef, useState } from 'react';
 import { useParams, useRouteLoaderData } from 'react-router-dom';
 import styled from 'styled-components';
-
 import { getCommonHeaderNames, getCommonHeaderValues } from '../../../common/common-headers';
-import { documentationLinks } from '../../../common/documentation';
 import { generateId } from '../../../common/misc';
 import { getRenderedGrpcRequest, getRenderedGrpcRequestMessage, RENDER_PURPOSE_SEND } from '../../../common/render';
 import { GrpcMethodInfo, GrpcMethodType } from '../../../main/ipc/grpc';
@@ -12,7 +10,6 @@ import type { GrpcRequestHeader } from '../../../models/grpc-request';
 import { queryAllWorkspaceUrls } from '../../../models/helpers/query-all-workspace-urls';
 import { tryToInterpolateRequestOrShowRenderErrorModal } from '../../../utils/try-interpolate';
 import { useRequestSetter } from '../../hooks/use-request';
-import { useActiveRequestSyncVCSVersion, useGitVCSVersion } from '../../hooks/use-vcs-version';
 import { GrpcRequestState } from '../../routes/debug';
 import { GrpcRequestLoaderData } from '../../routes/request';
 import { WorkspaceLoaderData } from '../../routes/workspace';
@@ -33,6 +30,7 @@ import { Button } from '../themed-button';
 import { Tooltip } from '../tooltip';
 import { EmptyStatePane } from './empty-state-pane';
 import { Pane, PaneBody, PaneHeader } from './pane';
+
 interface Props {
   grpcState: GrpcRequestState;
   setGrpcState: (states: GrpcRequestState) => void;
@@ -103,16 +101,14 @@ export const GrpcRequestPane: FunctionComponent<Props> = ({
   }, [activeRequest]);
 
   const editorRef = useRef<CodeEditorHandle>(null);
-  const gitVersion = useGitVCSVersion();
-  const activeRequestSyncVersion = useActiveRequestSyncVCSVersion();
   const { workspaceId, requestId } = useParams() as { workspaceId: string; requestId: string };
   const patchRequest = useRequestSetter();
   const {
     activeEnvironment,
   } = useRouteLoaderData(':workspaceId') as WorkspaceLoaderData;
   const environmentId = activeEnvironment._id;
-  // Reset the response pane state when we switch requests, the environment gets modified, or the (Git|Sync)VCS version changes
-  const uniquenessKey = `${activeEnvironment.modified}::${requestId}::${gitVersion}::${activeRequestSyncVersion}`;
+  // Reset the response pane state when we switch requests or the environment gets modified
+  const uniquenessKey = `${activeEnvironment.modified}::${requestId}`;
 
   const methodType = method?.type;
   const handleRequestSend = async () => {

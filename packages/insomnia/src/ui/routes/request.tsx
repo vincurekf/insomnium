@@ -52,12 +52,13 @@ export interface RequestLoaderData {
 }
 
 export const loader: LoaderFunction = async ({ params }): Promise<RequestLoaderData | WebSocketRequestLoaderData | GrpcRequestLoaderData> => {
-  const { organizationId, projectId, requestId, workspaceId } = params;
+  const { projectId, requestId, workspaceId } = params;
   guard(requestId, 'Request ID is required');
   guard(workspaceId, 'Workspace ID is required');
   const activeRequest = await requestOperations.getById(requestId);
+
   if (!activeRequest) {
-    throw redirect(`/organization/${organizationId}/project/${projectId}/workspace/${workspaceId}/debug`);
+    throw redirect(`/project/${projectId}/workspace/${workspaceId}/debug`);
   }
   const activeWorkspaceMeta = await models.workspaceMeta.getByParentId(workspaceId);
 
@@ -96,11 +97,12 @@ export const loader: LoaderFunction = async ({ params }): Promise<RequestLoaderD
 };
 
 export const createRequestAction: ActionFunction = async ({ request, params }) => {
-  const { organizationId, projectId, workspaceId } = params;
+  const { projectId, workspaceId } = params;
   guard(typeof workspaceId === 'string', 'Workspace ID is required');
   const { requestType, parentId, req } = await request.json() as { requestType: CreateRequestType; parentId?: string; req?: Request };
 
   let activeRequestId;
+
   if (requestType === 'HTTP') {
     activeRequestId = (await models.request.create({
       parentId: parentId || workspaceId,
@@ -109,12 +111,14 @@ export const createRequestAction: ActionFunction = async ({ request, params }) =
       headers: [{ name: 'User-Agent', value: `insomnium/${version}` }],
     }))._id;
   }
+
   if (requestType === 'gRPC') {
     activeRequestId = (await models.grpcRequest.create({
       parentId: parentId || workspaceId,
       name: 'New Request',
     }))._id;
   }
+
   if (requestType === 'GraphQL') {
     activeRequestId = (await models.request.create({
       parentId: parentId || workspaceId,
@@ -130,6 +134,7 @@ export const createRequestAction: ActionFunction = async ({ request, params }) =
       name: 'New Request',
     }))._id;
   }
+
   if (requestType === 'Event Stream') {
     activeRequestId = (await models.request.create({
       parentId: parentId || workspaceId,
@@ -142,6 +147,7 @@ export const createRequestAction: ActionFunction = async ({ request, params }) =
       name: 'New Event Stream',
     }))._id;
   }
+
   if (requestType === 'WebSocket') {
     activeRequestId = (await models.webSocketRequest.create({
       parentId: parentId || workspaceId,
@@ -149,6 +155,7 @@ export const createRequestAction: ActionFunction = async ({ request, params }) =
       headers: [{ name: 'User-Agent', value: `insomnium/${version}` }],
     }))._id;
   }
+
   if (requestType === 'From Curl') {
     if (!req) {
       return null;
@@ -171,7 +178,7 @@ export const createRequestAction: ActionFunction = async ({ request, params }) =
   guard(typeof activeRequestId === 'string', 'Request ID is required');
   models.stats.incrementCreatedRequests();
 
-  return redirect(`/organization/${organizationId}/project/${projectId}/workspace/${workspaceId}/debug/request/${activeRequestId}`);
+  return redirect(`/project/${projectId}/workspace/${workspaceId}/debug/request/${activeRequestId}`);
 };
 
 // ARCHY NOTE: ACTUAL REQUEST UPDATE IS HERE after
@@ -194,7 +201,7 @@ export const updateRequestAction: ActionFunction = async ({ request, params }) =
 };
 
 export const deleteRequestAction: ActionFunction = async ({ request, params }) => {
-  const { organizationId, projectId, workspaceId } = params;
+  const { projectId, workspaceId } = params;
   guard(typeof workspaceId === 'string', 'Workspace ID is required');
   const formData = await request.formData();
   const id = formData.get('id') as string;
@@ -204,15 +211,17 @@ export const deleteRequestAction: ActionFunction = async ({ request, params }) =
   await requestOperations.remove(req);
   const workspaceMeta = await models.workspaceMeta.getByParentId(workspaceId);
   guard(workspaceMeta, 'Workspace meta not found');
+
   if (workspaceMeta.activeRequestId === id) {
     await models.workspaceMeta.updateByParentId(workspaceId, { activeRequestId: null });
-    return redirect(`/organization/${organizationId}/project/${projectId}/workspace/${workspaceId}/debug`);
+
+    return redirect(`/project/${projectId}/workspace/${workspaceId}/debug`);
   }
   return null;
 };
 
 export const duplicateRequestAction: ActionFunction = async ({ request, params }) => {
-  const { organizationId, projectId, workspaceId, requestId } = params;
+  const { projectId, workspaceId, requestId } = params;
   guard(typeof workspaceId === 'string', 'Workspace ID is required');
   guard(typeof requestId === 'string', 'Request ID is required');
   const { name, parentId } = await request.json();
@@ -232,7 +241,8 @@ export const duplicateRequestAction: ActionFunction = async ({ request, params }
   const newRequest = await requestOperations.duplicate(req, { name });
   guard(newRequest, 'Failed to duplicate request');
   models.stats.incrementCreatedRequests();
-  return redirect(`/organization/${organizationId}/project/${projectId}/workspace/${workspaceId}/debug/request/${newRequest._id}`);
+
+  return redirect(`/project/${projectId}/workspace/${workspaceId}/debug/request/${newRequest._id}`);
 };
 
 export const updateRequestMetaAction: ActionFunction = async ({ request, params }) => {

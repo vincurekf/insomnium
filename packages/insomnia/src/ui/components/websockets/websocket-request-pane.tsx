@@ -10,7 +10,6 @@ import { tryToInterpolateRequestOrShowRenderErrorModal } from '../../../utils/tr
 import { buildQueryStringFromParams, joinUrlAndQueryString } from '../../../utils/url/querystring';
 import { useReadyState } from '../../hooks/use-ready-state';
 import { useRequestSetter } from '../../hooks/use-request';
-import { useActiveRequestSyncVCSVersion, useGitVCSVersion } from '../../hooks/use-vcs-version';
 import { WebSocketRequestLoaderData } from '../../routes/request';
 import { RootLoaderData } from '../../routes/root';
 import { TabItem, Tabs } from '../base/tabs';
@@ -208,8 +207,7 @@ interface Props {
 // TODO: @gatzjames discuss above assertion in light of request and settings drills
 export const WebSocketRequestPane: FC<Props> = ({ environment }) => {
   const { activeRequest, activeRequestMeta } = useRouteLoaderData('request/:requestId') as WebSocketRequestLoaderData;
-
-  const { workspaceId, requestId } = useParams() as { organizationId: string; projectId: string; workspaceId: string; requestId: string };
+  const { workspaceId, requestId } = useParams() as { projectId: string; workspaceId: string; requestId: string };
   const readyState = useReadyState({ requestId: activeRequest._id, protocol: 'webSocket' });
   const {
     settings,
@@ -254,11 +252,9 @@ export const WebSocketRequestPane: FC<Props> = ({ environment }) => {
   };
   const [isRequestSettingsModalOpen, setIsRequestSettingsModalOpen] = useState(false);
 
-  const gitVersion = useGitVCSVersion();
-  const activeRequestSyncVersion = useActiveRequestSyncVCSVersion();
   const patchRequest = useRequestSetter();
-  // Reset the response pane state when we switch requests, the environment gets modified, or the (Git|Sync)VCS version changes
-  const uniqueKey = `${environment?.modified}::${requestId}::${gitVersion}::${activeRequestSyncVersion}::${activeRequestMeta.activeResponseId}`;
+  // Reset the response pane state when we switch requests or the environment gets modified
+  const uniqueKey = `${environment?.modified}::${requestId}::${activeRequestMeta.activeResponseId}`;
 
   return (
     <Pane type="request">
